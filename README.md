@@ -16,7 +16,7 @@ https://emiliasingleton0.github.io/iss-mission-ops-map/
 
 - Live ISS latitude, longitude, altitude, velocity, illumination state, and ground footprint
 - Large orbital ground-track visualization with observed trail and 90-minute SGP4 prediction
-- Five-day pass predictor using the browser Geolocation API
+- Weekly pass predictor using the browser Geolocation API
 - Pass visibility analysis with elevation, direction, duration, daylight/eclipsed status, and countdown
 - NASA Astronomy Picture of the Day using NASA's official APOD API
 - Crew manifest sourced from NASA Expedition information, with portraits where available
@@ -24,7 +24,6 @@ https://emiliasingleton0.github.io/iss-mission-ops-map/
 - Orbit profile derived from current CelesTrak TLE data
 - System diagnostics with API status and latency checks
 - Source Transparency section explaining where every dataset comes from
-- Responsive, professional, muted mission-console interface
 
 ## Screenshots
 
