@@ -1,28 +1,135 @@
 # ISS Mission Operations Center
 
-Aerospace-inspired web dashboard for tracking the International Space Station and predicting visible passes over the user's location.
+A professional aerospace-inspired mission dashboard for visualizing the International Space Station using live telemetry, NASA mission media, CelesTrak orbital elements, client-side SGP4 propagation, browser geolocation, and live data visualization.
 
-## Core features
+![ISS Mission Operations Center dashboard](docs/screenshots/01-hero-dashboard.png)
+
+## Live Demo
+
+Add your GitHub Pages link here after publishing:
+
+```text
+https://your-username.github.io/iss-mission-operations-center/
+```
+
+## Demo
+
+![Mission operations dashboard demo](docs/demo/mission-ops-demo.gif)
+
+## Why I Built This
+
+Most ISS trackers show a simple dot on a map. I wanted to build something closer to an operations console: a polished dashboard that combines real-time telemetry, orbital prediction, geolocation-based pass forecasting, official NASA media, and transparent data sourcing.
+
+## Features
 
 - Live ISS latitude, longitude, altitude, velocity, illumination state, and ground footprint
-- Interactive dark operations-style world map with ISS marker, observed trail, and predicted ground track
-- 90-minute orbit prediction using local SGP4 propagation
-- Five-day ISS pass search using the browser's Geolocation API
-- Azimuth/elevation pass analysis with visibility tags: Visible, Daylight, or Eclipsed
-- Countdown timer and optional browser notifications before a pass
-- NASA Astronomy Picture of the Day integration through NASA’s official APOD API
-- Personal NASA API key configured in `app.js` so visitors do not need to enter a key
-- NASA Expedition-sourced crew manifest with transparent source labeling
-- System diagnostics with API status and latency
-- Data provenance panel explaining exactly where each dataset comes from
-- Chart.js telemetry analytics
-- Separate `index.html`, `styles.css`, `app.js`, and `orbital-engine.js` for maintainability
+- Large orbital ground-track visualization with observed trail and 90-minute SGP4 prediction
+- Five-day pass predictor using the browser Geolocation API
+- Pass visibility analysis with elevation, direction, duration, daylight/eclipsed status, and countdown
+- NASA Astronomy Picture of the Day using NASA's official APOD API
+- Crew manifest sourced from NASA Expedition information, with portraits where available
+- Telemetry analytics using live browser-session samples
+- Orbit profile derived from current CelesTrak TLE data
+- System diagnostics with API status and latency checks
+- Source Transparency section explaining where every dataset comes from
+- Responsive, professional, muted mission-console interface
 
-This version removes the public-facing API key form so visitors do not have to configure anything.
-Because this is a static GitHub Pages project, the key is visible in browser developer tools. That is normal for public front-end demos using NASA’s public data APIs, but it should not be treated like a password.
+## Screenshots
 
-A TLE, or Two-Line Element set, describes the ISS orbit. SGP4 is the standard public orbit-propagation model used by satellite tracking tools. Instead of asking an API for dozens or hundreds of future positions, this project fetches one current TLE and calculates the orbit locally.
+### Orbital Ground Track
 
-NASA is used for official media and the crew source page. NASA is not the source for every dataset because NASA does not provide every ISS tracking function through one public API. A professional architecture uses the best source for each job: NASA for media, CelesTrak for orbital elements, wheretheiss.at for current telemetry, and local SGP4 for predictions.
+![Live orbital ground track](docs/screenshots/01-hero-dashboard.png)
 
-The ground-track focal point was changed from public map tiles to a self-contained SVG mission map. This avoids blank map tiles, repeated tile seams, and GitHub Pages/Live Server tile-loading issues while still plotting real live ISS latitude/longitude and SGP4-predicted future positions.
+### NASA APOD + Pass Predictor
+
+![NASA APOD and pass predictor](docs/screenshots/02-apod-pass-predictor.png)
+
+### Telemetry Analytics + Crew Manifest
+
+![Telemetry analytics and crew manifest](docs/screenshots/03-analytics-crew.png)
+
+### Source Transparency
+
+![Source transparency](docs/screenshots/04-source-transparency.png)
+
+### Crew Manifest
+
+![Crew manifest](docs/screenshots/05-crew-manifest.png)
+
+## Technologies Used
+
+- HTML5
+- CSS3
+- JavaScript ES6+
+- Chart.js
+- satellite.js / SGP4
+- SunCalc.js
+- NASA APOD API
+- CelesTrak TLE data
+- wheretheiss.at telemetry API
+- Browser Geolocation API
+- Browser Notifications API
+- GitHub Pages
+
+## Data Architecture
+
+![Data architecture diagram](docs/diagrams/architecture.svg)
+
+| Feature | Source | Purpose |
+|---|---|---|
+| Live telemetry | wheretheiss.at | Current ISS coordinates, altitude, velocity, illumination, and footprint |
+| Orbital elements | CelesTrak | Current ISS Two-Line Element set for NORAD ID 25544 |
+| Orbit prediction | SGP4 via satellite.js | Client-side 90-minute ground-track and pass prediction |
+| NASA media | NASA APOD API | Official Astronomy Picture of the Day |
+| Crew roster | NASA Expedition source | Crew manifest with clear source labeling |
+| User location | Browser Geolocation API | Local ISS pass prediction |
+| Alerts | Browser Notifications API | Optional pass notifications |
+
+## Source Transparency
+
+This project separates real data from calculated prediction data.
+
+**Real data includes:**
+
+- Live ISS coordinates, altitude, velocity, illumination, and footprint
+- Official NASA APOD media
+- CelesTrak orbital elements
+- Browser geolocation
+
+**Calculated data includes:**
+
+- 90-minute ground-track prediction
+- Pass visibility
+- Azimuth/elevation
+- Countdown to next visible pass
+- Orbit profile values derived from the current TLE
+
+The calculated values are not guesses or ChatGPT-generated placeholders. They are computed in the browser using current orbital data and SGP4 propagation, similar to how satellite tracking tools work.
+
+## NASA API Key
+
+This project uses NASA's APOD API. For best reliability, use a free NASA API key from `api.nasa.gov` and place it in `app.js` where the NASA API key constant is defined.
+
+Because this is a static GitHub Pages project, the key is visible in browser developer tools. NASA API keys are used for public NASA data and are appropriate for front-end portfolio demos, but they should not be treated like passwords.
+
+## What I Learned
+
+- How to integrate multiple public APIs into one dashboard
+- How to work with live telemetry and asynchronous JavaScript
+- How TLE orbital data and SGP4 propagation support satellite prediction
+- How to calculate local ISS passes using geolocation
+- How to communicate data provenance clearly in a user interface
+- How to design a dashboard that feels closer to professional operations software than a simple demo
+
+## Future Improvements
+
+- Add a backend proxy for API key management
+- Add historical telemetry storage
+- Add unit tests for pass-prediction logic
+- Improve mobile-specific layouts
+- Add more official astronaut imagery when available
+- Add exportable pass schedules
+
+## Author
+
+Built by Emilia Singleton, Information Technology student at the University of Central Florida.
