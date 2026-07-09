@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ISS Mission Operations Dashboard</title>
+  <meta name="description" content="Live ISS tracking and pass-prediction dashboard: SGP4 orbit propagation, real visibility/eclipse checks, NASA APOD, crew manifest, and API diagnostics." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQq4jFZ89QSk+c5OD3t9B4xyI2vV8A=" crossorigin="" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <h1>ISS Mission Operations Center</h1>
+        <div class="subtitle">Live orbital telemetry • SGP4 pass prediction • NASA mission media • system diagnostics</div>
+      </div>
+      <div class="status-cluster">
+        <div class="chip"><span class="dot"></span>Mission Active</div>
+        <div class="chip" id="utcClock">UTC --:--:--</div>
+        <div class="chip" id="refreshStatus">Telemetry Sync</div>
+      </div>
+    </header>
+
+    <section class="dashboard">
+      <div>
+        <article class="panel">
+          <div class="panel-header"><span class="panel-title">Orbital Ground Track</span><span class="label">Satellite NORAD ID 25544</span></div>
+          <div id="map" class="mission-map">
+            <svg id="missionMapSvg" viewBox="0 0 1000 500" role="img" aria-label="ISS orbital ground track map" preserveAspectRatio="none">
+              <defs>
+                <radialGradient id="mapGlow" cx="50%" cy="50%" r="75%">
+                  <stop offset="0%" stop-color="#0d2d3a" stop-opacity="0.35" />
+                  <stop offset="70%" stop-color="#04101a" stop-opacity="0.96" />
+                  <stop offset="100%" stop-color="#02070d" stop-opacity="1" />
+                </radialGradient>
+                <filter id="softGlow"><feGaussianBlur stdDeviation="2.2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+              </defs>
+              <rect width="1000" height="500" fill="url(#mapGlow)" />
+              <g class="map-grid"></g>
+              <g class="map-labels">
+                <text x="145" y="145">NORTH AMERICA</text><text x="260" y="310">SOUTH AMERICA</text>
+                <text x="500" y="170">EUROPE</text><text x="520" y="285">AFRICA</text>
+                <text x="710" y="205">ASIA</text><text x="790" y="355">AUSTRALIA</text>
+                <text x="470" y="455">ANTARCTICA</text>
+              </g>
+              <g class="landmasses" opacity="0.72">
+                <path d="M118 116 L170 88 L236 100 L266 145 L232 185 L184 176 L150 205 L105 180 Z" />
+                <path d="M225 220 L270 250 L288 315 L260 395 L220 342 L195 280 Z" />
+                <path d="M462 132 L520 118 L558 146 L525 185 L470 178 L432 152 Z" />
+                <path d="M505 205 L560 235 L575 305 L535 385 L492 332 L480 255 Z" />
+                <path d="M585 132 L675 105 L805 140 L870 205 L815 260 L715 230 L655 280 L580 230 Z" />
+                <path d="M775 335 L840 325 L890 365 L845 402 L785 382 Z" />
+                <path d="M78 438 L925 438 L950 470 L45 470 Z" />
+              </g>
+              <g id="futureTrackGroup" class="future-track"></g>
+              <g id="trailTrackGroup" class="trail-track"></g>
+              <g id="userLocationGroup" class="user-location" style="display:none"><circle r="5"/><circle r="14"/></g>
+              <g id="issSvgMarker" class="iss-svg-marker" transform="translate(500 250)"><circle r="11"/><path d="M-18 0 H18 M0 -18 V18"/><text x="18" y="-14">ISS</text></g>
+            </svg>
+            <div class="map-readout"><span id="mapMode">LIVE GROUND TRACK</span><span>projection: equirectangular</span><span>client-side SGP4 prediction</span></div>
+          </div>
+          <div class="panel-body" style="padding-top:10px; padding-bottom:10px;">
+            <div class="small-note">
+              <span style="color:var(--accent)">&#9644;</span> observed trail &nbsp;&nbsp;
+              <span style="color:var(--orange)">&#9634;</span> 90-min prediction (SGP4) &nbsp;&nbsp;
+              <span style="color:var(--good)">&#9679;</span> your location
+            </div>
+          </div>
+        </article>
+
+        <section class="metrics">
+          <div class="metric"><div class="label">Latitude</div><div class="value" id="lat">--</div></div>
+          <div class="metric"><div class="label">Longitude</div><div class="value" id="lon">--</div></div>
+          <div class="metric"><div class="label">Altitude</div><div class="value"><span id="alt">--</span><span class="unit">km</span></div></div>
+          <div class="metric"><div class="label">Velocity</div><div class="value"><span id="vel">--</span><span class="unit">km/h</span></div></div>
+          <div class="metric"><div class="label">Illumination</div><div class="value" id="visState">--</div></div>
+          <div class="metric"><div class="label">Ground Footprint</div><div class="value"><span id="footprint">--</span><span class="unit">km</span></div></div>
+        </section>
+
+        <section class="lower-grid">
+          <article class="panel">
+            <div class="panel-header"><span class="panel-title">Flight Dynamics Engine</span><span class="label">TLE + SGP4</span></div>
+            <div class="panel-body">
+              <p class="small-note no-margin"><strong>Prediction method:</strong> one current ISS Two-Line Element set is fetched from CelesTrak and propagated locally in the browser with SGP4. This avoids the wheretheiss.at batch timestamp limit and makes the 90-minute track plus five-day pass search more realistic.</p>
+              <div class="source-row mini-source"><div><strong id="tleName">ISS (ZARYA)</strong><span id="tleAge">TLE waiting for sync</span></div><div class="pill">SGP4</div></div>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-header"><span class="panel-title">Trust Layer</span><span class="label">Source transparency</span></div>
+            <div class="panel-body">
+              <p class="small-note no-margin"><strong>Real data:</strong> live coordinates, altitude, velocity, footprint, official NASA media, CelesTrak orbital elements, and browser geolocation. <strong>Calculated data:</strong> pass visibility, azimuth/elevation, countdown, and ground-track prediction.</p>
+              <p class="small-note">The crew roster is intentionally labeled as NASA Expedition sourced because NASA does not publish a simple official current-crew REST API.</p>
+            </div>
+          </article>
+        </section>
+      </div>
+
+      <aside class="side">
+        <article class="panel">
+          <div class="panel-header"><span class="panel-title">Pass Predictor</span><span class="label" id="gpsStatus">GPS standby</span></div>
+          <div class="panel-body">
+            <div class="grid-2">
+              <div class="metric"><div class="label">Next Visible Pass</div><div class="value" id="nextPass">--</div></div>
+              <div class="metric"><div class="label">Countdown</div><div class="value" id="countdown">--</div></div>
+            </div>
+            <div class="button-row">
+              <button id="locateBtn">Use My Location</button>
+              <button id="notifyBtn">Enable Alerts</button>
+            </div>
+            <div class="pass-result" id="passDetails">Location not connected yet. Use your location to search the next 5 days for visible ISS passes.</div>
+
+            <div class="pass-list-head">
+              <span class="label">Upcoming Passes</span>
+              <span class="label" id="passWindowNote">--</span>
+            </div>
+            <div class="pass-list" id="passList"></div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header"><span class="panel-title">NASA Mission Media</span><span class="label">APOD API</span></div>
+          <div class="panel-body">
+            <div class="nasa-card" id="apodCard">
+              <div class="nasa-copy">
+                <div class="label">Loading NASA Astronomy Picture of the Day</div>
+                <h3 id="apodTitle">Connecting to NASA API...</h3>
+                <p id="apodText">Official NASA imagery will appear here when the API responds.</p>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel compact-panel">
+          <div class="panel-header"><span class="panel-title">NASA API Key</span><span class="label" id="nasaKeyStatus">DEMO_KEY mode</span></div>
+          <div class="panel-body">
+            <div class="key-row">
+              <input id="nasaKeyInput" type="password" placeholder="Paste personal NASA API key here" autocomplete="off" />
+              <button id="saveNasaKeyBtn">Save Key</button>
+            </div>
+            <div class="small-note">This app uses NASA's public <strong>DEMO_KEY</strong> by default. Add your own free key for higher APOD reliability. The key is stored only in this browser's localStorage for this portfolio demo.</div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header"><span class="panel-title">Telemetry Analytics</span><span class="label">Live Chart.js</span></div>
+          <div class="panel-body"><canvas id="telemetryChart"></canvas></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header"><span class="panel-title">Crew Manifest</span><span class="label">NASA expedition source</span></div>
+          <div class="panel-body">
+            <div class="crew-list" id="crewList"><div class="small-note">Loading NASA expedition crew manifest...</div></div><div class="small-note" id="crewSourceNote"></div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header"><span class="panel-title">System Diagnostics</span><span class="label">API health monitor</span></div>
+          <div class="panel-body">
+            <div class="metrics" style="grid-template-columns: repeat(2, 1fr); margin-top: 0;">
+              <div class="metric"><div class="label">ISS Telemetry</div><div class="value" id="issApi">--</div><div class="small-note" id="issLatency">Latency --</div></div>
+              <div class="metric"><div class="label">Orbital Elements</div><div class="value" id="tleApi">--</div><div class="small-note" id="tleLatency">Latency --</div></div>
+              <div class="metric"><div class="label">NASA APOD</div><div class="value" id="nasaApi">--</div><div class="small-note" id="nasaLatency">Latency --</div></div>
+              <div class="metric"><div class="label">Crew Feed</div><div class="value" id="crewApi">--</div><div class="small-note" id="crewLatency">Latency --</div></div>
+            </div>
+            <div class="small-note">This panel checks each external dependency, records round-trip latency, and fails gracefully instead of breaking the interface.</div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header"><span class="panel-title">Data Sources</span><span class="label">Transparent architecture</span></div>
+          <div class="panel-body source-grid">
+            <div class="source-row"><div><strong>wheretheiss.at</strong><span>Live "right now" position, altitude, and velocity tile.</span></div><div class="pill" id="sourceIss">ACTIVE</div></div>
+            <div class="source-row"><div><strong>TLE + SGP4 (client-side)</strong><span>Current ISS TLE from CelesTrak, propagated locally with SGP4/satellite.js for the 90-min prediction and multi-day pass search.</span></div><div class="pill" id="sourceTle">ACTIVE</div></div>
+            <div class="source-row"><div><strong>NASA APOD API</strong><span>Official NASA mission imagery and media context.</span></div><div class="pill" id="sourceNasa">ACTIVE</div></div>
+            <div class="source-row"><div><strong>NASA Expedition page</strong><span>Crew roster is sourced from NASA’s active ISS Expedition page and displayed with a source link/date instead of an unofficial crew API.</span></div><div class="pill" id="sourceCrew">ACTIVE</div></div>
+            <div class="source-row"><div><strong>Leaflet + OpenStreetMap</strong><span>Interactive map layer with a dark operations-console visual treatment.</span></div><div class="pill">MAP</div></div>
+            <div class="source-row"><div><strong>Browser APIs</strong><span>Geolocation and Notification APIs for pass prediction and alerts.</span></div><div class="pill">CLIENT</div></div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header"><span class="panel-title">Orbital Visualization</span><span class="label">~92-min period</span></div>
+          <div class="earth-visual"><div class="globe" aria-label="Rotating Earth visualization"></div></div>
+        </article>
+      </aside>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
+  <script src="orbital-engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
