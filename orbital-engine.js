@@ -1,5 +1,6 @@
 /**
  * orbital.js
+ * ---------------------------------------------------------------------------
  * Core orbital mechanics engine for the ISS Tracker.
  *
  * Everything downstream (the live map, the telemetry readouts, and the pass
@@ -16,6 +17,7 @@
  * Depends on the global `satellite` object from satellite.js and the global
  * `SunCalc` object from suncalc.js (both loaded via <script> tags before
  * this file).
+ * ---------------------------------------------------------------------------
  */
 
 const ISSOrbital = (() => {

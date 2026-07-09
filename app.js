@@ -10,7 +10,7 @@
  * ---------------------------------------------------------------------------
  */
 
-let NASA_API_KEY = localStorage.getItem('nasa-api-key') || 'DEMO_KEY'; // Personal keys are saved in localStorage for this static demo.
+const NASA_API_KEY = 'WuH5oGz6EjiJvWsc1rbnQtqnqodOmmAucfLR5YS7'; // Replace with your free NASA API key from https://api.nasa.gov before publishing. Keep DEMO_KEY only for quick local testing.
 const ISS_ID = 25544;
 const NASA_EXPEDITION_URL = 'https://www.nasa.gov/mission/expedition-74/';
 const PASS_SEARCH_DAYS = 5;
@@ -90,17 +90,20 @@ const chart = new Chart(document.getElementById('telemetryChart'), {
   data: {
     labels: [],
     datasets: [
-      { label: 'Altitude km', data: [], borderWidth: 2, tension: 0.35 },
-      { label: 'Velocity km/h / 100', data: [], borderWidth: 2, tension: 0.35 },
+      { label: 'Altitude (km)', data: [], borderWidth: 2, tension: 0.35, yAxisID: 'altitudeAxis' },
+      { label: 'Velocity (km/h)', data: [], borderWidth: 2, tension: 0.35, yAxisID: 'velocityAxis' },
     ],
   },
   options: {
     responsive: true,
+    maintainAspectRatio: false,
     animation: false,
+    interaction: { mode: 'index', intersect: false },
     plugins: { legend: { labels: { color: '#c8e8f7' } } },
     scales: {
       x: { ticks: { color: '#8aa8ba' }, grid: { color: 'rgba(82,210,255,0.08)' } },
-      y: { ticks: { color: '#8aa8ba' }, grid: { color: 'rgba(82,210,255,0.08)' } },
+      altitudeAxis: { type: 'linear', position: 'left', ticks: { color: '#8aa8ba' }, grid: { color: 'rgba(82,210,255,0.08)' }, title: { display: true, text: 'Altitude km', color: '#8aa8ba' } },
+      velocityAxis: { type: 'linear', position: 'right', ticks: { color: '#8aa8ba' }, grid: { drawOnChartArea: false }, title: { display: true, text: 'Velocity km/h', color: '#8aa8ba' } },
     },
   },
 });
@@ -110,12 +113,23 @@ const chart = new Chart(document.getElementById('telemetryChart'), {
 // ---------------------------------------------------------------------------
 
 function fmt(num, digits = 2) { return Number(num).toLocaleString(undefined, { maximumFractionDigits: digits }); }
+function initials(name) { return name.split(/\s+/).filter(Boolean).map(part => part[0]).slice(0,2).join('').toUpperCase(); }
+function preloadImage(url) {
+  return new Promise((resolve, reject) => {
+    if (!url) return reject(new Error('No image URL'));
+    const img = new Image();
+    img.onload = () => resolve(url);
+    img.onerror = () => reject(new Error('APOD image failed to load'));
+    img.referrerPolicy = 'no-referrer';
+    img.src = url;
+  });
+}
 function setText(id, text) { document.getElementById(id).textContent = text; }
 function utcClock() { setText('utcClock', 'UTC ' + new Date().toISOString().slice(11, 19)); }
 setInterval(utcClock, 1000); utcClock();
 
-/** Splits a run of {lat, lon} points into segments so Leaflet doesn't draw a
- *  line straight across the map when the ground track crosses ±180°. */
+/** Splits a run of {lat, lon} points into segments so the SVG map does not draw
+ *  a line straight across the projection when the ground track crosses ±180°. */
 function splitAtAntimeridian(points) {
   const segments = [[]];
   for (const p of points) {
@@ -197,7 +211,7 @@ async function updateTelemetry() {
     setText('refreshStatus', 'Updated ' + new Date().toLocaleTimeString());
 
     state.samples.push({ time: Date.now(), lat, lon, alt: data.altitude, vel: data.velocity });
-    state.samples = state.samples.slice(-45);
+    state.samples = state.samples.slice(-720); // up to roughly one hour at the 5-second refresh cadence
     renderSegments(trailTrackGroup, splitAtAntimeridian(state.samples), 'trail-polyline');
     updateChart();
   } catch (err) {
@@ -206,10 +220,10 @@ async function updateTelemetry() {
 }
 
 function updateChart() {
-  const samples = state.samples.slice(-18);
+  const samples = state.samples.filter((p) => Date.now() - p.time <= 60 * 60 * 1000).filter((_, i, arr) => arr.length <= 60 || i % Math.ceil(arr.length / 60) === 0);
   chart.data.labels = samples.map((p) => new Date(p.time).toLocaleTimeString([], { minute: '2-digit', second: '2-digit' }));
   chart.data.datasets[0].data = samples.map((p) => p.alt);
-  chart.data.datasets[1].data = samples.map((p) => p.vel / 100);
+  chart.data.datasets[1].data = samples.map((p) => p.vel);
   chart.update();
 }
 
@@ -301,32 +315,46 @@ function updateCountdown() {
 
 async function loadApod() {
   const apodCard = document.getElementById('apodCard');
+  const apodLink = document.getElementById('apodLink');
+  const dateLabel = document.getElementById('apodDateLabel');
+
+  // Official APOD only: this panel does not substitute random NASA Image
+  // Library results. If the API is unavailable, the UI shows a transparent
+  // service state and links to the official APOD page instead of pretending
+  // another image is today's APOD.
   try {
-    const apod = await getJSON(`https://api.nasa.gov/planetary/apod?api_key=${NASA_API_KEY}`, 8000, 'nasa');
-    setText('apodTitle', apod.title || 'NASA Astronomy Picture of the Day');
-    const explanation = apod.explanation ? apod.explanation.slice(0, 210) + '...' : 'Official NASA APOD loaded successfully.';
-    setText('apodText', explanation);
-    if (apod.media_type === 'image' && apod.url) {
-      apodCard.style.backgroundImage = `linear-gradient(90deg, rgba(3,7,13,0.74), rgba(3,7,13,0.18)), url('${apod.url}')`;
-    } else if (apod.thumbnail_url) {
-      apodCard.style.backgroundImage = `linear-gradient(90deg, rgba(3,7,13,0.74), rgba(3,7,13,0.18)), url('${apod.thumbnail_url}')`;
+    if (dateLabel) dateLabel.textContent = 'Contacting official NASA APOD API';
+    const apod = await getJSON(`https://api.nasa.gov/planetary/apod?api_key=${encodeURIComponent(NASA_API_KEY)}&thumbs=true`, 12000, 'nasa');
+    const title = apod.title || 'NASA Astronomy Picture of the Day';
+    const date = apod.date ? `NASA APOD • ${apod.date}` : 'NASA APOD • today';
+    const explanation = apod.explanation || 'Official NASA Astronomy Picture of the Day loaded successfully.';
+
+    setText('apodTitle', title);
+    setText('apodText', explanation.length > 260 ? explanation.slice(0, 260).trim() + '...' : explanation);
+    if (dateLabel) dateLabel.textContent = date;
+
+    const imageUrl = apod.media_type === 'image' ? (apod.hdurl || apod.url) : (apod.thumbnail_url || apod.url);
+    try {
+      const confirmedImage = await preloadImage(imageUrl);
+      apodCard.style.backgroundImage = `linear-gradient(90deg, rgba(3,7,13,0.76), rgba(3,7,13,0.12)), url('${confirmedImage}')`;
+    } catch (imageErr) {
+      apodCard.style.backgroundImage = '';
+      setText('apodText', (explanation.length > 240 ? explanation.slice(0, 240).trim() + '...' : explanation) + ' Image preview could not be embedded, but the official APOD link is available.');
+    }
+
+    if (apodLink) {
+      apodLink.href = apod.url || 'https://apod.nasa.gov/apod/astropix.html';
+      apodLink.textContent = apod.media_type === 'video' ? 'Open NASA APOD video' : 'Open official APOD media';
     }
   } catch (err) {
-    // NASA APOD's DEMO_KEY can hit public rate limits. Keep the NASA requirement
-    // alive by falling back to NASA's public Image and Video Library API.
-    try {
-      const media = await getJSON('https://images-api.nasa.gov/search?q=International%20Space%20Station&media_type=image&page_size=12', 8000, 'nasa');
-      const item = (media.collection?.items || [])[Math.floor(Math.random() * Math.min(8, media.collection?.items?.length || 1))];
-      const title = item?.data?.[0]?.title || 'NASA Image Library: International Space Station';
-      const desc = item?.data?.[0]?.description || 'Official NASA image library media loaded as a fallback when APOD is unavailable.';
-      const image = item?.links?.find((l) => l.render === 'image')?.href;
-      setText('apodTitle', title);
-      setText('apodText', desc.slice(0, 210) + '...');
-      if (image) apodCard.style.backgroundImage = `linear-gradient(90deg, rgba(3,7,13,0.74), rgba(3,7,13,0.18)), url('${image}')`;
-    } catch (fallbackErr) {
-      markService('nasa', false, 0);
-      setText('apodTitle', 'NASA media offline');
-      setText('apodText', 'NASA APOD/Image Library did not respond. The rest of the dashboard is live; add a personal NASA API key to avoid DEMO_KEY limits.');
+    markService('nasa', false, 0);
+    apodCard.style.backgroundImage = '';
+    if (dateLabel) dateLabel.textContent = 'NASA APOD service unavailable';
+    setText('apodTitle', 'Official NASA APOD did not load');
+    setText('apodText', 'This panel is wired only to NASA’s official Astronomy Picture of the Day API. If it fails, check that a personal NASA API key is set in app.js, then retry after refresh. Until then, use the official APOD link.');
+    if (apodLink) {
+      apodLink.href = 'https://apod.nasa.gov/apod/astropix.html';
+      apodLink.textContent = 'Open official APOD website';
     }
   }
 }
@@ -334,6 +362,25 @@ async function loadApod() {
 // ---------------------------------------------------------------------------
 // Crew manifest
 // ---------------------------------------------------------------------------
+
+async function tryLoadCrewPortrait(name, elementId) {
+  try {
+    const query = encodeURIComponent(`astronaut portrait ${name}`);
+    const data = await getJSON(`https://images-api.nasa.gov/search?q=${query}&media_type=image`, 9000, null);
+    const item = (data.collection?.items || []).find((entry) => entry.links?.[0]?.href);
+    const href = item?.links?.[0]?.href;
+    if (!href) return;
+    const confirmed = await preloadImage(href);
+    const avatar = document.getElementById(elementId);
+    if (avatar) {
+      avatar.style.backgroundImage = `linear-gradient(180deg, rgba(3,7,13,0.05), rgba(3,7,13,0.18)), url('${confirmed}')`;
+      avatar.textContent = '';
+      avatar.classList.add('has-photo');
+    }
+  } catch (err) {
+    // Portrait loading is a visual enhancement only. Initials remain as a reliable fallback.
+  }
+}
 
 function loadCrew() {
   const list = document.getElementById('crewList');
@@ -343,7 +390,8 @@ function loadCrew() {
   // NASA does not currently provide a simple official "current ISS crew" REST API.
   // For credibility, the dashboard uses NASA's active Expedition page as the
   // authoritative source and labels it clearly instead of pretending an unofficial
-  // feed is NASA-owned.
+  // feed is NASA-owned. Portraits are attempted through NASA's public image
+  // library; initials remain when a portrait is unavailable.
   const nasaExpeditionCrew = [
     { name: 'Sergey Kud-Sverchkov', agency: 'Roscosmos', role: 'Commander' },
     { name: 'Chris Williams', agency: 'NASA', role: 'Flight Engineer' },
@@ -354,42 +402,22 @@ function loadCrew() {
     { name: 'Andrey Fedyaev', agency: 'Roscosmos', role: 'Flight Engineer' },
   ];
 
-  list.innerHTML = nasaExpeditionCrew.map((person) => `
-    <div class="crew-member"><strong>${person.name}</strong><span>${person.agency} / ${person.role}</span></div>
+  list.classList.add('crew-cards', 'crew-portrait-grid');
+  list.innerHTML = nasaExpeditionCrew.map((person, index) => `
+    <div class="crew-card crew-card-portrait">
+      <div class="crew-avatar crew-photo" id="crewPhoto${index}" aria-hidden="true">${initials(person.name)}</div>
+      <div class="crew-copy"><strong>${person.name}</strong><span>${person.agency}</span><em>${person.role}</em></div>
+    </div>
   `).join('');
 
+  nasaExpeditionCrew.forEach((person, index) => {
+    if (person.agency === 'NASA' || person.agency === 'ESA') tryLoadCrewPortrait(person.name, `crewPhoto${index}`);
+  });
+
   if (sourceNote) {
-    sourceNote.innerHTML = `Source: <a href="${NASA_EXPEDITION_URL}" target="_blank" rel="noreferrer">NASA Expedition 74 mission page</a>. Last verified in this build: July 2026.`;
+    sourceNote.innerHTML = `Source: <a href="${NASA_EXPEDITION_URL}" target="_blank" rel="noreferrer">NASA Expedition 74 mission page</a>. Portraits use NASA Image Library when available; initials are shown as the fallback.`;
   }
   markService('crew', true, Math.round(performance.now() - started));
-}
-
-function setupNasaKeyControls() {
-  const input = document.getElementById('nasaKeyInput');
-  const button = document.getElementById('saveNasaKeyBtn');
-  const status = document.getElementById('nasaKeyStatus');
-  if (!input || !button || !status) return;
-
-  status.textContent = NASA_API_KEY === 'DEMO_KEY' ? 'DEMO_KEY mode' : 'Personal key active';
-  if (NASA_API_KEY !== 'DEMO_KEY') input.placeholder = 'Personal NASA key saved';
-
-  button.addEventListener('click', () => {
-    const value = input.value.trim();
-    if (!value) {
-      localStorage.removeItem('nasa-api-key');
-      NASA_API_KEY = 'DEMO_KEY';
-      status.textContent = 'DEMO_KEY mode';
-      alert('NASA API key cleared. The dashboard will use DEMO_KEY.');
-    } else {
-      localStorage.setItem('nasa-api-key', value);
-      NASA_API_KEY = value;
-      status.textContent = 'Personal key active';
-      input.value = '';
-      input.placeholder = 'Personal NASA key saved';
-      alert('NASA API key saved in this browser. Reloading NASA media now.');
-    }
-    loadApod();
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -423,6 +451,24 @@ document.getElementById('notifyBtn').addEventListener('click', async () => {
   alert(permission === 'granted' ? 'Pass alerts enabled.' : 'Notifications were not enabled.');
 });
 
+
+function updateOrbitProfile(tle) {
+  if (!tle || !tle.line2) return;
+  const parts = tle.line2.trim().split(/\s+/);
+  const inclination = Number(parts[2]);
+  const meanMotion = Number(parts[7]);
+  const periodMinutes = Number.isFinite(meanMotion) && meanMotion > 0 ? 1440 / meanMotion : null;
+  if (document.getElementById('orbitInclination') && Number.isFinite(inclination)) {
+    setText('orbitInclination', `${inclination.toFixed(2)}° relative to Earth's equator`);
+  }
+  if (document.getElementById('orbitPeriod') && periodMinutes) {
+    setText('orbitPeriod', `${periodMinutes.toFixed(2)} minutes per orbit`);
+  }
+  if (document.getElementById('orbitMeanMotion') && Number.isFinite(meanMotion)) {
+    setText('orbitMeanMotion', `${meanMotion.toFixed(5)} revolutions per day`);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Init
 // ---------------------------------------------------------------------------
@@ -434,6 +480,7 @@ async function initOrbitalEngine() {
     markService('tle', true, Math.round(performance.now() - started));
     if (document.getElementById('tleName')) setText('tleName', tle.name || 'ISS (ZARYA)');
     if (document.getElementById('tleAge')) setText('tleAge', `Fetched ${new Date(tle.fetchedAt).toLocaleString()} from ${tle.source || 'CelesTrak'}`);
+    updateOrbitProfile(tle);
     updateOrbitPrediction();
     if (state.user) computePass();
     setInterval(updateOrbitPrediction, 120000);
@@ -445,7 +492,6 @@ async function initOrbitalEngine() {
   }
 }
 
-setupNasaKeyControls();
 updateTelemetry();
 initOrbitalEngine();
 loadApod();
