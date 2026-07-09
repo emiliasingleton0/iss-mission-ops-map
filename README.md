@@ -1,24 +1,16 @@
 # ISS Mission Operations Center
 
-A professional aerospace-inspired mission dashboard for visualizing the International Space Station using live telemetry, NASA mission media, CelesTrak orbital elements, client-side SGP4 propagation, browser geolocation, and live data visualization.
+Aerospace-inspired mission dashboard for visualizing the International Space Station using live telemetry, NASA mission media, CelesTrak orbital elements, client-side SGP4 propagation, browser geolocation, and live data visualization.
 
 ![ISS Mission Operations Center dashboard](docs/screenshots/01-hero-dashboard.png)
 
 ## Live Demo
 
-Add your GitHub Pages link here after publishing:
-
-```text
-https://your-username.github.io/iss-mission-operations-center/
-```
+https://emiliasingleton0.github.io/iss-mission-ops-map/
 
 ## Demo
 
 ![Mission operations dashboard demo](docs/demo/mission-ops-demo.gif)
-
-## Why I Built This
-
-Most ISS trackers show a simple dot on a map. I wanted to build something closer to an operations console: a polished dashboard that combines real-time telemetry, orbital prediction, geolocation-based pass forecasting, official NASA media, and transparent data sourcing.
 
 ## Features
 
@@ -56,7 +48,7 @@ Most ISS trackers show a simple dot on a map. I wanted to build something closer
 
 ![Crew manifest](docs/screenshots/05-crew-manifest.png)
 
-## Technologies Used
+## Used
 
 - HTML5
 - CSS3
@@ -87,9 +79,9 @@ Most ISS trackers show a simple dot on a map. I wanted to build something closer
 
 ## Source Transparency
 
-This project separates real data from calculated prediction data.
+This project separates official data from calculated prediction data.
 
-**Real data includes:**
+**Official supported data:**
 
 - Live ISS coordinates, altitude, velocity, illumination, and footprint
 - Official NASA APOD media
@@ -104,32 +96,18 @@ This project separates real data from calculated prediction data.
 - Countdown to next visible pass
 - Orbit profile values derived from the current TLE
 
-The calculated values are not guesses or ChatGPT-generated placeholders. They are computed in the browser using current orbital data and SGP4 propagation, similar to how satellite tracking tools work.
+The calculated values are computed in the browser using current orbital data and SGP4 propagation
 
-## NASA API Key
+## Future Improvements (?)
 
-This project uses NASA's APOD API. For best reliability, use a free NASA API key from `api.nasa.gov` and place it in `app.js` where the NASA API key constant is defined.
-
-Because this is a static GitHub Pages project, the key is visible in browser developer tools. NASA API keys are used for public NASA data and are appropriate for front-end portfolio demos, but they should not be treated like passwords.
-
-## What I Learned
-
-- How to integrate multiple public APIs into one dashboard
-- How to work with live telemetry and asynchronous JavaScript
-- How TLE orbital data and SGP4 propagation support satellite prediction
-- How to calculate local ISS passes using geolocation
-- How to communicate data provenance clearly in a user interface
-- How to design a dashboard that feels closer to professional operations software than a simple demo
-
-## Future Improvements
-
-- Add a backend proxy for API key management
-- Add historical telemetry storage
-- Add unit tests for pass-prediction logic
+- backend proxy for API key management
+- historical telemetry storage
+- unit tests for pass-prediction logic
 - Improve mobile-specific layouts
 - Add more official astronaut imagery when available
 - Add exportable pass schedules
 
 ## Author
 
-Built by Emilia Singleton, Information Technology student at the University of Central Florida.
+Emilia Singleton
+Information Technology student at the University of Central Florida
