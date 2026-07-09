@@ -103,10 +103,8 @@ The calculated values are computed in the browser using current orbital data and
 - historical telemetry storage
 - unit tests for pass-prediction logic
 - Improve mobile-specific layouts
-- Add more official astronaut imagery when available
-- Add exportable pass schedules
 
 ## Author
 
-Emilia Singleton
+Emilia Singleton,
 Information Technology student at the University of Central Florida
