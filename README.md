@@ -97,13 +97,6 @@ This project separates official data from calculated prediction data.
 
 The calculated values are computed in the browser using current orbital data and SGP4 propagation
 
-## Future Improvements (?)
-
-- backend proxy for API key management
-- historical telemetry storage
-- unit tests for pass-prediction logic
-- Improve mobile-specific layouts
-
 ## Author
 
 Emilia Singleton,
