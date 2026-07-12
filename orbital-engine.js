@@ -1,23 +1,8 @@
 /**
- * orbital.js
- * ---------------------------------------------------------------------------
- * Core orbital mechanics engine for the ISS Tracker.
- *
- * Everything downstream (the live map, the telemetry readouts, and the pass
- * predictor) is built on ONE data source: a current Two-Line Element set
- * (TLE) for the ISS, propagated locally in the browser with SGP4 via
- * satellite.js. This mirrors how real ground-station software works: fetch
- * fresh orbital elements periodically, then propagate them yourself rather
- * than polling someone else's "where is it right now" endpoint.
- *
+ 
  * Data sources:
  *  - TLE:   https://tle.ivanstanojevic.me/api/tle/25544   (NORAD ID 25544 = ISS)
- *  - Crew:  see js/crew.js (separate, unrelated source)
- *
- * Depends on the global `satellite` object from satellite.js and the global
- * `SunCalc` object from suncalc.js (both loaded via <script> tags before
- * this file).
- * ---------------------------------------------------------------------------
+ *  - Crew:  see js/crew.js
  */
 
 const ISSOrbital = (() => {
@@ -32,10 +17,8 @@ const ISSOrbital = (() => {
   let satrec = null;
   let tleMeta = null; // { line1, line2, name, fetchedAt }
 
-  // -------------------------------------------------------------------------
   // TLE acquisition
-  // -------------------------------------------------------------------------
-
+  
   function readTleCache() {
     try {
       const raw = localStorage.getItem(TLE_CACHE_KEY);
@@ -87,10 +70,8 @@ const ISSOrbital = (() => {
   function getTleMeta() {
     return tleMeta;
   }
-
-  // -------------------------------------------------------------------------
+  
   // Propagation
-  // -------------------------------------------------------------------------
 
   /**
    * Returns { lat, lon, altKm, speedKmS, speedKmH, eci, date } for a given
@@ -122,13 +103,6 @@ const ISSOrbital = (() => {
     };
   }
 
-  /**
-   * Samples the ground track from `date` forward for `minutes`, every
-   * `stepSeconds`. Returns an array of { lat, lon, altKm, speedKmH, date }.
-   * The caller is responsible for splitting the path at the antimeridian
-   * before drawing it (see map.js / app.js) since this just returns raw
-   * samples.
-   */
   function getGroundTrack(date, minutes, stepSeconds = 30) {
     const points = [];
     const totalSteps = Math.ceil((minutes * 60) / stepSeconds);
@@ -140,18 +114,8 @@ const ISSOrbital = (() => {
     return points;
   }
 
-  // -------------------------------------------------------------------------
-  // Sun geometry (for eclipse / visibility checks)
-  // -------------------------------------------------------------------------
-
-  /**
-   * Low-precision sun position in a geocentric-equatorial frame, close
-   * enough to the TEME frame satellite.js uses for this purpose (accurate
-   * to a fraction of a degree — plenty for a visibility yes/no check).
-   * Returns a unit vector { x, y, z }.
-   * Formulas adapted from the standard low-precision solar position
-   * algorithm (see e.g. Astronomical Almanac / Meeus, low-precision form).
-   */
+// sun geo
+  
   function sunUnitVector(date) {
     const JD = date.getTime() / 86400000 + 2440587.5;
     const n = JD - 2451545.0; // days since J2000.0
@@ -167,13 +131,6 @@ const ISSOrbital = (() => {
     };
   }
 
-  /**
-   * Whether the satellite (given its ECI position in km) is lit by the sun
-   * or hidden in Earth's shadow. Uses a simplified cylindrical shadow model
-   * (ignores penumbra/atmospheric refraction) — the same simplification
-   * most hobbyist pass predictors use, and plenty accurate for a "will I be
-   * able to see it" call.
-   */
   function isIlluminated(eciPositionKm, date) {
     const sunHat = sunUnitVector(date);
     const dot =
@@ -196,10 +153,9 @@ const ISSOrbital = (() => {
     return pos.altitude * DEG;
   }
 
-  // -------------------------------------------------------------------------
+  
   // Look angles (azimuth / elevation from an observer to the satellite)
-  // -------------------------------------------------------------------------
-
+  
   function getLookAngles(date, observer) {
     const pv = satellite.propagate(satrec, date);
     if (!pv || !pv.position) return null;
@@ -228,20 +184,6 @@ const ISSOrbital = (() => {
     return dirs[idx];
   }
 
-  // -------------------------------------------------------------------------
-  // Pass finding
-  // -------------------------------------------------------------------------
-
-  /**
-   * Finds upcoming passes of the ISS over `observer` ({lat, lon, altM}).
-   * Scans forward `days` days in `stepSeconds` increments looking for
-   * elevation crossing above `minElevationDeg`, then refines the rise/set
-   * boundaries with a short bisection for tighter timing.
-   *
-   * Returns an array of pass objects:
-   *   { aos, los, tca, maxElevationDeg, aosAzimuthDeg, losAzimuthDeg,
-   *     tcaAzimuthDeg, durationSec, visible, reason }
-   */
   function findPasses(observer, { startDate = new Date(), days = 5, minElevationDeg = 10, stepSeconds = 20, maxPasses = 8 } = {}) {
     const passes = [];
     const totalSteps = Math.floor((days * 86400) / stepSeconds);
@@ -327,10 +269,6 @@ const ISSOrbital = (() => {
     }
     return new Date(Math.round((lo + hi) / 2));
   }
-
-  // -------------------------------------------------------------------------
-  // Formatting helpers shared across UI modules
-  // -------------------------------------------------------------------------
 
   function formatDuration(totalSeconds) {
     const s = Math.max(0, Math.round(totalSeconds));
