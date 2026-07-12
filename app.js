@@ -1,14 +1,3 @@
-/**
- * app.js — ISS Mission Operations Dashboard
- * ---------------------------------------------------------------------------
- * Live "right now" telemetry comes from wheretheiss.at (simple, one value).
- * Everything forward-looking — the 90-minute predicted ground track and the
- * multi-day pass search — comes from local SGP4 propagation in
- * orbital-engine.js. See that file for why: the obvious alternative (asking
- * wheretheiss.at for a batch of future positions) caps out at 10 timestamps
- * per request, which isn't enough for either feature.
- * ---------------------------------------------------------------------------
- */
 
 const NASA_API_KEY = 'WuH5oGz6EjiJvWsc1rbnQtqnqodOmmAucfLR5YS7'; // Replace with your free NASA API key from https://api.nasa.gov before publishing. Keep DEMO_KEY only for quick local testing.
 const ISS_ID = 25544;
@@ -18,14 +7,6 @@ const MIN_ELEVATION_DEG = 10;
 
 const state = { samples: [], user: null, nextPass: null, passes: [], notified: false, apiHealth: {} };
 
-// ---------------------------------------------------------------------------
-// Mission map (self-contained SVG, no external map tiles)
-// ---------------------------------------------------------------------------
-
-// The previous Leaflet tile map looked good when every tile loaded, but public
-// tile services can leave blank/repeated regions on GitHub Pages or Live Server.
-// This version uses a self-contained equirectangular SVG map so the dashboard's
-// focal point always renders while still plotting real ISS coordinates.
 const MAP_W = 1000;
 const MAP_H = 500;
 const issSvgMarker = document.getElementById('issSvgMarker');
@@ -81,10 +62,6 @@ function updateUserMarker(lat, lon) {
 
 buildMapGrid();
 
-// ---------------------------------------------------------------------------
-// Chart
-// ---------------------------------------------------------------------------
-
 const chart = new Chart(document.getElementById('telemetryChart'), {
   type: 'line',
   data: {
@@ -107,10 +84,6 @@ const chart = new Chart(document.getElementById('telemetryChart'), {
     },
   },
 });
-
-// ---------------------------------------------------------------------------
-// Small helpers
-// ---------------------------------------------------------------------------
 
 function fmt(num, digits = 2) { return Number(num).toLocaleString(undefined, { maximumFractionDigits: digits }); }
 function initials(name) { return name.split(/\s+/).filter(Boolean).map(part => part[0]).slice(0,2).join('').toUpperCase(); }
@@ -148,10 +121,6 @@ function formatClockDuration(ms) {
   const sec = s % 60;
   return `${h}h ${m}m ${sec}s`;
 }
-
-// ---------------------------------------------------------------------------
-// Fetch wrapper with timeout + latency tracking, feeding the diagnostics panel
-// ---------------------------------------------------------------------------
 
 async function getJSON(url, timeoutMs = 8000, serviceName = null) {
   const controller = new AbortController();
@@ -192,9 +161,7 @@ function markService(service, ok, latency) {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Live "right now" telemetry
-// ---------------------------------------------------------------------------
 
 async function updateTelemetry() {
   try {
@@ -227,9 +194,7 @@ function updateChart() {
   chart.update();
 }
 
-// ---------------------------------------------------------------------------
 // Orbit prediction (local SGP4, no API call)
-// ---------------------------------------------------------------------------
 
 function updateOrbitPrediction() {
   const track = ISSOrbital.getGroundTrack(new Date(), 90, 300); // 19 points, 5 min apart
@@ -237,9 +202,7 @@ function updateOrbitPrediction() {
   renderSegments(futureTrackGroup, segments, 'future-polyline');
 }
 
-// ---------------------------------------------------------------------------
-// Pass predictor (local SGP4 + sun/eclipse check, 5-day search)
-// ---------------------------------------------------------------------------
+// Pass predictor (local SGP4 + sun/eclipse check)
 
 function computePass() {
   if (!state.user || !ISSOrbital.getTleMeta()) return;
@@ -309,19 +272,16 @@ function updateCountdown() {
   if (diff <= 0) state.notified = false; // reset so the next pass can notify too
 }
 
-// ---------------------------------------------------------------------------
-// NASA APOD
-// ---------------------------------------------------------------------------
+// apod
 
 async function loadApod() {
   const apodCard = document.getElementById('apodCard');
   const apodLink = document.getElementById('apodLink');
   const dateLabel = document.getElementById('apodDateLabel');
 
-  // Official APOD only: this panel does not substitute random NASA Image
-  // Library results. If the API is unavailable, the UI shows a transparent
-  // service state and links to the official APOD page instead of pretending
-  // another image is today's APOD.
+  //  If the API is unavailable, the UI shows a transparent
+  // service state and links to the official APOD page
+  
   try {
     if (dateLabel) dateLabel.textContent = 'Contacting official NASA APOD API';
     const apod = await getJSON(`https://api.nasa.gov/planetary/apod?api_key=${encodeURIComponent(NASA_API_KEY)}&thumbs=true`, 12000, 'nasa');
@@ -359,9 +319,7 @@ async function loadApod() {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Crew manifest
-// ---------------------------------------------------------------------------
 
 async function tryLoadCrewPortrait(name, elementId) {
   try {
@@ -378,7 +336,7 @@ async function tryLoadCrewPortrait(name, elementId) {
       avatar.classList.add('has-photo');
     }
   } catch (err) {
-    // Portrait loading is a visual enhancement only. Initials remain as a reliable fallback.
+    // Portrait loading is a visual enhancement only
   }
 }
 
@@ -386,12 +344,6 @@ function loadCrew() {
   const list = document.getElementById('crewList');
   const sourceNote = document.getElementById('crewSourceNote');
   const started = performance.now();
-
-  // NASA does not currently provide a simple official "current ISS crew" REST API.
-  // For credibility, the dashboard uses NASA's active Expedition page as the
-  // authoritative source and labels it clearly instead of pretending an unofficial
-  // feed is NASA-owned. Portraits are attempted through NASA's public image
-  // library; initials remain when a portrait is unavailable.
   const nasaExpeditionCrew = [
     { name: 'Sergey Kud-Sverchkov', agency: 'Roscosmos', role: 'Commander' },
     { name: 'Chris Williams', agency: 'NASA', role: 'Flight Engineer' },
@@ -420,9 +372,7 @@ function loadCrew() {
   markService('crew', true, Math.round(performance.now() - started));
 }
 
-// ---------------------------------------------------------------------------
 // Event handlers
-// ---------------------------------------------------------------------------
 
 document.getElementById('locateBtn').addEventListener('click', () => {
   if (!navigator.geolocation) {
@@ -469,9 +419,7 @@ function updateOrbitProfile(tle) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Init
-// ---------------------------------------------------------------------------
+// init
 
 async function initOrbitalEngine() {
   const started = performance.now();
