@@ -97,6 +97,12 @@ This project separates official data from calculated prediction data.
 
 The calculated values are computed in the browser using current orbital data and SGP4 propagation
 
+# Updates
+
+7/13/26 Added Open Video Option for NASA APOD Days where videos are uploaded
+<img width="466" height="439" alt="image" src="https://github.com/user-attachments/assets/994ff145-6ebb-4a9b-a7c0-72d8f6d516d5" />
+
+
 ## Author
 
 Emilia Singleton,
